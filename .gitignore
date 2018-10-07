@@ -1,0 +1,9 @@
+# Settings folder
+.vscode/
+# Latex tmp files
+.gitignore
+Morgachev2018Title/Morgachev2018Title.aux
+Morgachev2018Title/Morgachev2018Title.fdb_latexmk
+Morgachev2018Title/Morgachev2018Title.fls
+Morgachev2018Title/Morgachev2018Title.log
+Morgachev2018Title/Morgachev2018Title.synctex.gz
