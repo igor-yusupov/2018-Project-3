@@ -1,13 +1,15 @@
 import numpy as np
+import pandas
 
 
 class DataIterator(StopIteration):
 
-    def __init__(self, data, element_length, shuffle=True):
+    def __init__(self, data: pandas.DataFrame, element_length, shuffle=True, overlap=0):
         self.data = data
         self.element_length = element_length
-        sample_size = data.shape[0] // element_length
-        self.starts = np.linspace(0, (sample_size - 1) * element_length, sample_size, dtype=int)
+        unique_element_length = element_length - overlap
+        sample_size = (data.shape[0] - overlap) // unique_element_length
+        self.starts = np.linspace(0, (sample_size - 1) * unique_element_length, sample_size, dtype=int)
         self.position = 0
         if shuffle:
             np.random.shuffle(self.starts)
