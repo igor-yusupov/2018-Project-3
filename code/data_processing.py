@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+
 
 class DataIterator(StopIteration):
 
@@ -16,8 +16,8 @@ class DataIterator(StopIteration):
         return self
 
     def __next__(self):
-        if  self.position < self.starts.shape[0]:
+        if self.position < self.starts.shape[0]:
             start = self.starts[self.position]
             self.position += 1
             return self.data.loc[start:start + self.element_length - 1, :]
-        raise StopIteration()
+        raise StopIteration
