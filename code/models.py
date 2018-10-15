@@ -57,7 +57,7 @@ class Autoregression:
         """
         results = []
         for i in range(len(self.params) // 2):
-            results.append((self.params[2*i], self.params[2*i]))
+            results.append((self.params[2*i], self.params[2*i + 1]))
 
         return results
 
