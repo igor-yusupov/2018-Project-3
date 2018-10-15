@@ -56,7 +56,6 @@ def dtw_improved(x, y, dist, warp=1, l=0.3):
 
 
 def count_lines(freq, thread_num, x, y, dist, l, D):
-    print(freq)
     r, c = len(x), len(y)
     lc = int(round(c * l))
     for i in range(freq, r, thread_num):
