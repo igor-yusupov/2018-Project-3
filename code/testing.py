@@ -16,8 +16,8 @@ default_params = {
     "overlap": 0,
     "shuffle": True,
     "sample_size": 10,
-    "chanel_num": 3,
-    "repeat_num": 1
+    "chanel_num": 4,
+    "repeat_num": 2
 }
 
 
@@ -44,18 +44,18 @@ class TestFactory:
 
         if X is None:
             X = self.get_n(sample_size)
-        X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch3"].values.reshape(1, -1)[0] for x in X])
-
+        X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in X])
+        
         start_time = time.time()
         for i in range(self.repeat_num):
             Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function))
         end_time = time.time()
 
-        print("Elapsed time: {0:0.4}".format(end_time - start_time))
+        print("Elapsed time: {0:0.4}".format((end_time - start_time) / self.repeat_num))
         if visualize:
             self.visualize(Z)
 
-        self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(), end_time - start_time))
+        self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(), (end_time - start_time) / self.repeat_num))
 
     def dtw_dist(self, dtw_function, distance_function):
         return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function)[0])
