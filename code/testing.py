@@ -15,8 +15,9 @@ default_params = {
     "path": "../data/Eye-Motion/ECoG.csv",
     "overlap": 0,
     "shuffle": True,
-    "sample_size": 40,
-    "chanel_num": 5
+    "sample_size": 10,
+    "chanel_num": 3,
+    "repeat_num": 1
 }
 
 
@@ -31,23 +32,26 @@ class TestFactory:
         self.data_iterator = DataIterator(data, self.element_length, params["shuffle"])
         self.chanel_num = params["chanel_num"]
         self.shape =next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch3"].values.shape
+        self.repeat_num = params["repeat_num"]
         self.results = []
 
     def get_n(self, n):
         return [next(self.data_iterator) for i in range(n)]
 
-    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False):
+    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, X=None):
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
-        X = self.get_n(sample_size)
+        if X is None:
+            X = self.get_n(sample_size)
         X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch3"].values.reshape(1, -1)[0] for x in X])
 
         start_time = time.time()
-        Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function))
+        for i in range(self.repeat_num):
+            Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function))
         end_time = time.time()
 
-        print("elapsed time: {0:0.5}".format(end_time - start_time))
+        print("Elapsed time: {0:0.4}".format(end_time - start_time))
         if visualize:
             self.visualize(Z)
 
