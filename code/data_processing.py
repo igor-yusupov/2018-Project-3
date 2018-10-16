@@ -1,18 +1,24 @@
 import numpy as np
 import pandas
 
+from sklearn.utils import shuffle
+
 
 class DataIterator(StopIteration):
 
-    def __init__(self, data: pandas.DataFrame, element_length, shuffle=True, overlap=0):
+    def __init__(self, data: pandas.DataFrame, element_length, shuffle=True, overlap=0, random_state=-1):
         self.data = data
         self.element_length = element_length
         unique_element_length = element_length - overlap
         sample_size = (data.shape[0] - overlap) // unique_element_length
         self.starts = np.linspace(0, (sample_size - 1) * unique_element_length, sample_size, dtype=int)
         self.position = 0
+        self.random_state = random_state
         if shuffle:
-            np.random.shuffle(self.starts)
+            if random_state != -1:
+                shuffle(self.starts, random_state=random_state)
+            else
+                shuffle(self.starts)
 
     def __iter__(self):
         return self
