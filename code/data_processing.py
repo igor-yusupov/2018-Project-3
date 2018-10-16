@@ -1,7 +1,7 @@
 import numpy as np
 import pandas
 
-from sklearn.utils import shuffle
+from sklearn.utils import shuffle as shuffle_set
 
 
 class DataIterator(StopIteration):
@@ -16,9 +16,9 @@ class DataIterator(StopIteration):
         self.random_state = random_state
         if shuffle:
             if random_state != -1:
-                shuffle(self.starts, random_state=random_state)
-            else
-                shuffle(self.starts)
+                shuffle_set(self.starts, random_state=random_state)
+            else:
+                shuffle_set(self.starts)
 
     def __iter__(self):
         return self
