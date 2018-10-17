@@ -18,7 +18,7 @@ default_params = {
     "shuffle": True,
     "sample_size": 10,
     "chanel_num": 4,
-    "repeat_num": 2
+    "repeat_num": 1
 }
 
 
