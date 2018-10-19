@@ -17,7 +17,7 @@ default_params = {
     "overlap": 0,
     "shuffle": True,
     "sample_size": 10,
-    "chanel_num": 4,
+    "chanel_num": 3,
     "repeat_num": 1
 }
 
@@ -32,7 +32,7 @@ class TestFactory:
         data = pd.read_csv('../data/Eye-Motion/ECoG.csv', header=0, nrows=params["nrow"])
         self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
         self.chanel_num = params["chanel_num"]
-        self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch3"].values.shape
+        self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
         self.repeat_num = params["repeat_num"]
         self.results = []
         self.X = None
@@ -55,7 +55,7 @@ class TestFactory:
             self.set_sample(sample_size)
 
         X_reshaped = np.array(
-            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in self.X])
+            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.X])
 
         start_time = time.time()
         for i in range(self.repeat_num):
