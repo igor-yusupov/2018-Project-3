@@ -35,6 +35,7 @@ class TestFactory:
         self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch3"].values.shape
         self.repeat_num = params["repeat_num"]
         self.results = []
+        self.X = None
         counter = 0
         folders = os.listdir("../data/results/")
         while str(counter) in folders:
@@ -45,15 +46,16 @@ class TestFactory:
     def get_n(self, n):
         return [next(self.data_iterator) for i in range(n)]
 
-    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, X=None, dump_result=False,
+    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, dump_result=False,
                  dist_name=None, dtw_args={}):
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
-        if X is None:
-            X = self.get_n(sample_size)
+        if self.X is None:
+            self.set_sample(sample_size)
+
         X_reshaped = np.array(
-            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in X])
+            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in self.X])
 
         start_time = time.time()
         for i in range(self.repeat_num):
@@ -71,6 +73,8 @@ class TestFactory:
         self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(),
                              (end_time - start_time) / self.repeat_num))
 
+        return Z
+
     def dtw_dist(self, dtw_function, distance_function, dtw_args):
         return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
 
@@ -87,3 +91,24 @@ class TestFactory:
     def load(file):
         with open(file, 'rb') as f:
             return pickle.load(f)
+
+    def set_sample(self, n=-1):
+        if n > 0:
+            self.X = self.get_n(n)
+        return self.X
+
+    def show_clustered(self, links, cluster_labels, ch=1, label=None, max_num=None):
+        idxs = np.where(cluster_labels == label)[0]
+        time = np.linspace(0, self.element_length - 1, self.element_length)
+        if max_num is None:
+            num_graphs = len(idxs)
+        else:
+            num_graphs = np.min([max_num, len(idxs)])
+        fig, ax = plt.subplots(num_graphs, 1, sharex=True, squeeze=False, figsize=(14, 2.5 * num_graphs),
+                            constrained_layout=False)
+        fig.suptitle("Chanel {0} of {1} cluster".format(ch, label), y=1, fontsize = 14);
+        for i in range(num_graphs):
+            ax[i][0].plot(time, self.X[idxs[i]].loc[:, "ECoG_ch{}".format(ch)]);
+            ax[i][0].grid()
+                
+        plt.tight_layout();

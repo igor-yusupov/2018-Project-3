@@ -34,7 +34,7 @@ class Autoregression:
         self._predicted_series = None
 
     def fit(self, window_size):
-        for i in range(30000):
+        for i in range(4000):
             loss = 0
             for (chanel_id, fun) in enumerate(self.learnable_functions):
                 out = fun(self.X[chanel_id])
@@ -57,7 +57,7 @@ class Autoregression:
         """
         results = []
         for i in range(len(self.params) // 2):
-            results.append((self.params[2*i], self.params[2*i + 1]))
+            results.append((self.params[2*i].reshape(-1), self.params[2*i + 1].reshape(-1)))
 
         return results
 
