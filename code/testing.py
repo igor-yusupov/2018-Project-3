@@ -32,30 +32,32 @@ class TestFactory:
         data = pd.read_csv('../data/Eye-Motion/ECoG.csv', header=0, nrows=params["nrow"])
         self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
         self.chanel_num = params["chanel_num"]
-        self.shape =next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch3"].values.shape
+        self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch3"].values.shape
         self.repeat_num = params["repeat_num"]
         self.results = []
         counter = 0
         folders = os.listdir("../data/results/")
         while str(counter) in folders:
             counter += 1
-        self.res_dir = "../data/results/{0}".format(counter)        
+        self.res_dir = "../data/results/{0}".format(counter)
         os.mkdir("../data/results/{0}".format(counter))
-    
+
     def get_n(self, n):
         return [next(self.data_iterator) for i in range(n)]
 
-    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, X=None, dump_result=False, dist_name=None):
+    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, X=None, dump_result=False,
+                 dist_name=None, dtw_args={}):
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
         if X is None:
             X = self.get_n(sample_size)
-        X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in X])
-        
+        X_reshaped = np.array(
+            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num - 1)].values.reshape(1, -1)[0] for x in X])
+
         start_time = time.time()
         for i in range(self.repeat_num):
-            Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function))
+            Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
         end_time = time.time()
 
         print("Elapsed time: {0:0.4}".format((end_time - start_time) / self.repeat_num))
@@ -66,10 +68,11 @@ class TestFactory:
             with open("{0}/{1}_{2}".format(self.res_dir, dtw_function.__name__, distance_name), 'wb') as f:
                 pickle.dump(Z, f)
 
-        self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(), (end_time - start_time) / self.repeat_num))
+        self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(),
+                             (end_time - start_time) / self.repeat_num))
 
-    def dtw_dist(self, dtw_function, distance_function):
-        return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function)[0])
+    def dtw_dist(self, dtw_function, distance_function, dtw_args):
+        return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
 
     @staticmethod
     def visualize(Z):
