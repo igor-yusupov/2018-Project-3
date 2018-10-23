@@ -2,6 +2,8 @@
 
 from numpy import array, zeros, argmin, inf, ndim
 from scipy.spatial.distance import cdist
+from scipy.stats.mstats import zscore
+
 
 
 def dtw(x, y, dist, warp=1):
@@ -34,15 +36,17 @@ def dtw(x, y, dist, warp=1):
                 j_k = min(j + k, c - 1)
                 min_list += [D0[i_k, j], D0[i, j_k]]
             D1[i, j] += min(min_list)
-    if len(x)==1:
-        path = zeros(len(y)), range(len(y))
-    elif len(y) == 1:
-        path = range(len(x)), zeros(len(x))
-    else:
-        path = _traceback(D0)
+
+    path, distance, tax = _traceback(D0)
     return D1[-1, -1] / sum(D1.shape), C, D1, path
 
-def dtw_ln(x, y, dist, warp=1, l=0.3):
+
+def dtw_ln(x, y, dist, warp=1, l=0.3, zscr=False, taxes=False):
+    if zscr:
+        zscore(x)
+        zscore(y)
+
+    t = (len(x) + len(y))/2
     r, c = len(x), len(y)
     lc = int(round(c * l))
     D0 = zeros((r + 1, c + 1))
@@ -65,46 +69,15 @@ def dtw_ln(x, y, dist, warp=1, l=0.3):
                 j_k = min(j + k, c - 1)
                 min_list += [D0[i_k, j], D0[i, j_k]]
             D1[i, j] += min(min_list)
-    if len(x)==1:
-        path = zeros(len(y)), range(len(y))
-    elif len(y) == 1:
-        path = range(len(x)), zeros(len(x))
-    else:
-        path = _traceback(D0)
-    return D1[-1, -1] / sum(D1.shape), C, D1, path
 
+    path, distance, tax = _traceback(D0, taxes)
 
-def dtw_improved(x, y, dist, warp=1, l=0.3):
-    r, c = len(x), len(y)
-    lc = int(round(c * l))
-    D0 = zeros((r + 1, c + 1))
-    D0[0, 1:] = inf
-    D0[1:, 0] = inf
-    D1 = D0[1:, 1:]  # view
-    D1[0:, 0:] = inf
-    for i in range(r):
-        for j in range(max(i - lc, 0), min(i + lc, c)):
-#             if (c >= r - lc and c <= r + lc):
-            D1[i, j] = dist(x[i], y[j])
-#             else:
-#                 D1[i, j] = inf
-    C = D1.copy()
-    for i in range(r):
-        for j in range(max(i - lc, 0), min(i + lc, c)):
-            min_list = [D0[i, j]]
-            for k in range(1, warp + 1):
-                i_k = min(i + k, r - 1)
-                j_k = min(j + k, c - 1)
-                min_list += [D0[i_k, j], D0[i, j_k]]
-            D1[i, j] += min(min_list)
-    if len(x)==1:
-        path = zeros(len(y)), range(len(y))
-    elif len(y) == 1:
-        path = range(len(x)), zeros(len(x))
-    else:
-        path = _traceback(D0)
-    return D1[-1, -1] / sum(D1.shape), C, D1, path
-
+    if (taxes):
+        if tax >= len(x) * 3 / 10:
+            distance *= 100
+        else:
+            distance *= (1 + tax * 10 / len(x))
+    return distance, C, D1, path
 
 
 def accelerated_dtw(x, y, dist, warp=1):
@@ -149,21 +122,29 @@ def accelerated_dtw(x, y, dist, warp=1):
     return D1[-1, -1] / sum(D1.shape), C, D1, path
 
 
-def _traceback(D):
+def _traceback(D, lc=100):
     i, j = array(D.shape) - 2
     p, q = [i], [j]
+    distance = 0
+    tax = 0
     while (i > 0) or (j > 0):
         tb = argmin((D[i, j], D[i, j+1], D[i+1, j]))
         if tb == 0:
+            distance += D[i, j]
             i -= 1
             j -= 1
         elif tb == 1:
+            distance += D[i, j+1]
             i -= 1
         else:  # (tb == 2):
+            distance += D[i+1, j]
             j -= 1
+        if abs(i-j) == lc:
+            tax += 1
+
         p.insert(0, i)
         q.insert(0, j)
-    return array(p), array(q)
+    return [array(p), array(q)], distance, tax
 
 
 if __name__ == '__main__':
