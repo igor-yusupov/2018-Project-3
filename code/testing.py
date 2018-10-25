@@ -158,7 +158,7 @@ class ClusteredInfo:
         align_to_id = np.random.choice(idxs)
         x_fixes = self.X[align_to_id]
 
-        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
+        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * self.chanel_num), constrained_layout=False)
         for (chanel_id, ax) in enumerate(axs):
                 x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
                 ax[0].plot(x, "black", label="X", linewidth=3)
