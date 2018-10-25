@@ -17,7 +17,7 @@ default_params = {
     "overlap": 0,
     "shuffle": True,
     "sample_size": 30,
-    "chanel_num": 3,
+    "chanel_num": 5,
     "repeat_num": 1
 }
 
@@ -117,7 +117,7 @@ class ClusteredInfo:
             num_graphs = len(idxs)
         else:
             num_graphs = np.min([max_num, len(idxs)])
-        fig, ax = plt.subplots(num_graphs, 1, sharex=True, squeeze=False, figsize=(14, 2.5 * num_graphs),
+        fig, ax = plt.subplots(num_graphs, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * num_graphs),
                             constrained_layout=False)
         fig.suptitle("Chanel {0} of {1} cluster".format(ch, label), y=1, fontsize = 14);
         for i in range(num_graphs):
@@ -126,15 +126,17 @@ class ClusteredInfo:
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, cluster_labels, label):
+    def clusters_compare_table(self, cluster_labels, label, num_series=5):
         idxs = np.where(cluster_labels == label)[0]
-        fig, ax = plt.subplots(5, 5, sharex=True, squeeze=False, figsize=(14, 10), constrained_layout=False)
-        t = self.X[0].loc[:, "ECoG_time"].values[:40]
-        for df_id in range(5):
-            for ch in range(1, 6):
-                x = self.X[df_id].loc[:, "ECoG_ch{0}".format(ch)].values[:40]
+        num_series = min(len(idxs), num_series)
+        if num_series == 0:
+            return
+        fig, ax = plt.subplots(num_series, self.chanel_num, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
+        t = self.X[0].loc[:, "ECoG_time"]
+        for df_id in range(num_series):
+            for ch in range(1, self.chanel_num + 1):
+                x = self.X[df_id].loc[:, "ECoG_ch{0}".format(ch)].values
                 ax[df_id][ch - 1].plot(t, x)
-                
                 if df_id == 0:
                     ax[df_id][ch - 1].set_xlabel('ch{}'.format(ch), fontsize=14)
                 if ch == 1:
@@ -143,15 +145,15 @@ class ClusteredInfo:
                 ax[df_id][ch - 1].xaxis.label.set_color('red')
                 ax[df_id][ch - 1].yaxis.label.set_color('red')
 
-    def allignment_to_random(self, cluster_labels, label):
+    def allignment_to_random(self, cluster_labels, label, num_series=5):
         idxs = np.where(cluster_labels == label)[0]
-        num_series = min(len(idxs), 5)
+        num_series = min(len(idxs), num_series)
         if num_series == 0:
             return
         align_to_id = np.random.choice(idxs)
         x_fixes = self.X[align_to_id]
 
-        fig, axs = plt.subplots(5, 1, sharex=True, squeeze=False, figsize=(14, 20), constrained_layout=False)
+        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 20), constrained_layout=False)
         for (chanel_id, ax) in enumerate(axs):
                 x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
                 ax[0].plot(x, "black", label="X", linewidth=3)
@@ -176,5 +178,5 @@ class ClusteredInfo:
                 ax[0].plot(y_new, label="y_new ts:{0}".format(df_id))
                 # for (map_x, map_y) in np.array(path).transpose():
                 #     plt.plot([map_x, map_y], [x[map_x], y[map_y]], 'black', linewidth=0.3)
-                ax[0].legend()
+                ax[0].legend(loc=1)
 
