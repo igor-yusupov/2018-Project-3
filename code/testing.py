@@ -12,11 +12,11 @@ from data_processing import DataIterator
 default_params = {
     "nrow": 100000,
     "window_size": 10,
-    "element_length": 300,
+    "element_length": 50,
     "path": "../data/Eye-Motion/ECoG.csv",
     "overlap": 0,
     "shuffle": True,
-    "sample_size": 10,
+    "sample_size": 30,
     "chanel_num": 3,
     "repeat_num": 1
 }
@@ -46,8 +46,7 @@ class TestFactory:
     def get_n(self, n):
         return [next(self.data_iterator) for i in range(n)]
 
-    def test_dtw(self, dtw_function, distance_function, sample_size=-1, visualize=False, dump_result=False,
-                 dist_name=None, dtw_args={}):
+    def test_dtw(self, dtw_function, distance_function, sample_size=-1, dump_result=False, dist_name=None, dtw_args={}):
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
@@ -63,8 +62,7 @@ class TestFactory:
         end_time = time.time()
 
         print("Elapsed time: {0:0.4}".format((end_time - start_time) / self.repeat_num))
-        if visualize:
-            self.visualize(Z)
+
         if dump_result:
             distance_name = distance_function.__name__ if dist_name is None else dist_name
             with open("{0}/{1}_{2}".format(self.res_dir, dtw_function.__name__, distance_name), 'wb') as f:
@@ -73,15 +71,13 @@ class TestFactory:
         self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(),
                              (end_time - start_time) / self.repeat_num))
 
-        return Z
+        return ClusteredInfo(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
 
     def dtw_dist(self, dtw_function, distance_function, dtw_args):
         return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
 
-    @staticmethod
-    def visualize(Z):
-        fig = plt.figure(figsize=(25, 10))
-        dn = dendrogram(Z)
+    def dtw(self, dtw_function, distance_function, dtw_args):
+        return lambda x, y: (dtw_function(x, y, distance_function, **dtw_args))
 
     def dump_result(self):
         with open("{0}/results.pkl".format(self.res_dir), 'wb') as f:
@@ -97,7 +93,24 @@ class TestFactory:
             self.X = self.get_n(n)
         return self.X
 
-    def show_clustered(self, links, cluster_labels, ch=1, label=None, max_num=None):
+
+class ClusteredInfo:
+
+    def __init__(self, X, Z, element_length, dtw, chanel_num, description=None):
+        self.X = X
+        self.Z = Z
+        self.element_length = element_length
+        self.description = description
+        self.count = len(X)
+        self.paths = dict()
+        self.dtw = dtw
+        self.chanel_num = chanel_num
+
+    def visualize(self):
+        fig = plt.figure(figsize=(25, 10))
+        dn = dendrogram(self.Z)
+    
+    def show_clustered(self, cluster_labels, ch=1, label=None, max_num=5):
         idxs = np.where(cluster_labels == label)[0]
         time = np.linspace(0, self.element_length - 1, self.element_length)
         if max_num is None:
@@ -112,3 +125,56 @@ class TestFactory:
             ax[i][0].grid()
                 
         plt.tight_layout();
+
+    def clusters_compare_table(self, cluster_labels, label):
+        idxs = np.where(cluster_labels == label)[0]
+        fig, ax = plt.subplots(5, 5, sharex=True, squeeze=False, figsize=(14, 10), constrained_layout=False)
+        t = self.X[0].loc[:, "ECoG_time"].values[:40]
+        for df_id in range(5):
+            for ch in range(1, 6):
+                x = self.X[df_id].loc[:, "ECoG_ch{0}".format(ch)].values[:40]
+                ax[df_id][ch - 1].plot(t, x)
+                
+                if df_id == 0:
+                    ax[df_id][ch - 1].set_xlabel('ch{}'.format(ch), fontsize=14)
+                if ch == 1:
+                    ax[df_id][ch - 1].set_ylabel('ts{}'.format(df_id + 1),fontsize=14)
+                ax[df_id][ch - 1].xaxis.set_label_position('top')
+                ax[df_id][ch - 1].xaxis.label.set_color('red')
+                ax[df_id][ch - 1].yaxis.label.set_color('red')
+
+    def allignment_to_random(self, cluster_labels, label):
+        idxs = np.where(cluster_labels == label)[0]
+        num_series = min(len(idxs), 5)
+        if num_series == 0:
+            return
+        align_to_id = np.random.choice(idxs)
+        x_fixes = self.X[align_to_id]
+
+        fig, axs = plt.subplots(5, 1, sharex=True, squeeze=False, figsize=(14, 20), constrained_layout=False)
+        for (chanel_id, ax) in enumerate(axs):
+                x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                ax[0].plot(x, "black", label="X", linewidth=3)
+
+        for df_id in range(num_series):
+            if align_to_id in self.paths and df_id in self.paths[align_to_id]:
+                path = self.paths[align_to_id][df_id]
+            elif df_id in self.paths and align_to_id in self.paths[df_id]:
+                path = (self.paths[df_id][align_to_id][1], self.paths[df_id][align_to_id][0])
+            else:
+                if df_id not in self.paths:
+                    self.paths[df_id] = dict()
+                path = self.dtw(x_fixes.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values, 
+                    self.X[df_id].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values)[3]
+                self.paths[df_id][align_to_id] = path
+
+            for (chanel_id, ax) in enumerate(axs):
+                y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                y_new = pd.DataFrame([y[i] for i in path[1]], index=path[0])
+                y_new = y_new.groupby(y_new.index).mean().values.reshape(-1)
+                # ax[0].plot(y, label="y ts:{0}".format(df_id))
+                ax[0].plot(y_new, label="y_new ts:{0}".format(df_id))
+                # for (map_x, map_y) in np.array(path).transpose():
+                #     plt.plot([map_x, map_y], [x[map_x], y[map_y]], 'black', linewidth=0.3)
+                ax[0].legend()
+
