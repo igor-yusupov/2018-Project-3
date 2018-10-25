@@ -14,10 +14,10 @@ default_params = {
     "window_size": 10,
     "element_length": 50,
     "path": "../data/Eye-Motion/ECoG.csv",
-    "overlap": 0,
+    "overlap": 10,
     "shuffle": True,
     "sample_size": 30,
-    "chanel_num": 5,
+    "chanel_num": 4,
     "repeat_num": 1
 }
 
@@ -62,16 +62,16 @@ class TestFactory:
         end_time = time.time()
 
         print("Elapsed time: {0:0.4}".format((end_time - start_time) / self.repeat_num))
-
+        info = ClusteredInfo(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
         if dump_result:
             distance_name = distance_function.__name__ if dist_name is None else dist_name
             with open("{0}/{1}_{2}".format(self.res_dir, dtw_function.__name__, distance_name), 'wb') as f:
-                pickle.dump(Z, f)
+                pickle.dump(info, f)
 
         self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(),
                              (end_time - start_time) / self.repeat_num))
 
-        return ClusteredInfo(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
+        return info
 
     def dtw_dist(self, dtw_function, distance_function, dtw_args):
         return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
@@ -105,6 +105,11 @@ class ClusteredInfo:
         self.paths = dict()
         self.dtw = dtw
         self.chanel_num = chanel_num
+    
+    @staticmethod
+    def load(f):
+        with open(f, 'rb') as f:
+            return pickle.load(f)
 
     def visualize(self):
         fig = plt.figure(figsize=(25, 10))
@@ -145,7 +150,7 @@ class ClusteredInfo:
                 ax[df_id][ch - 1].xaxis.label.set_color('red')
                 ax[df_id][ch - 1].yaxis.label.set_color('red')
 
-    def allignment_to_random(self, cluster_labels, label, num_series=5):
+    def allignment_to_random(self, cluster_labels, label, num_series=5, show_real_y=False):
         idxs = np.where(cluster_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
@@ -153,12 +158,15 @@ class ClusteredInfo:
         align_to_id = np.random.choice(idxs)
         x_fixes = self.X[align_to_id]
 
-        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 20), constrained_layout=False)
+        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
         for (chanel_id, ax) in enumerate(axs):
                 x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
                 ax[0].plot(x, "black", label="X", linewidth=3)
 
-        for df_id in range(num_series):
+        for i in range(num_series):
+            df_id = idxs[i]
+            if df_id == align_to_id:
+                continue
             if align_to_id in self.paths and df_id in self.paths[align_to_id]:
                 path = self.paths[align_to_id][df_id]
             elif df_id in self.paths and align_to_id in self.paths[df_id]:
@@ -174,9 +182,10 @@ class ClusteredInfo:
                 y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
                 y_new = pd.DataFrame([y[i] for i in path[1]], index=path[0])
                 y_new = y_new.groupby(y_new.index).mean().values.reshape(-1)
-                # ax[0].plot(y, label="y ts:{0}".format(df_id))
                 ax[0].plot(y_new, label="y_new ts:{0}".format(df_id))
-                # for (map_x, map_y) in np.array(path).transpose():
-                #     plt.plot([map_x, map_y], [x[map_x], y[map_y]], 'black', linewidth=0.3)
+                if show_real_y:
+                    ax[0].plot(y, label="y ts:{0}".format(df_id))
+                    for (map_x, map_y) in np.array(path).transpose():
+                        plt.plot([map_x, map_y], [x[map_x], y[map_y]], 'black', linewidth=0.3)
                 ax[0].legend(loc=1)
 
