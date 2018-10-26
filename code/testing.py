@@ -1,12 +1,12 @@
 import datetime
-import pickle
+import dill
 import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 from data_processing import DataIterator
 
 default_params = {
@@ -17,7 +17,7 @@ default_params = {
     "overlap": 10,
     "shuffle": True,
     "sample_size": 30,
-    "chanel_num": 4,
+    "chanel_num": 32,
     "repeat_num": 1
 }
 
@@ -46,7 +46,7 @@ class TestFactory:
     def get_n(self, n):
         return [next(self.data_iterator) for i in range(n)]
 
-    def test_dtw(self, dtw_function, distance_function, sample_size=-1, dump_result=False, dist_name=None, dtw_args={}):
+    def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}):
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
@@ -60,16 +60,14 @@ class TestFactory:
         for i in range(self.repeat_num):
             Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
         end_time = time.time()
-
-        print("Elapsed time: {0:0.4}".format((end_time - start_time) / self.repeat_num))
+        t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
+        print("Elapsed time: {0}".format(t))
         info = ClusteredInfo(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
         if dump_result:
-            distance_name = distance_function.__name__ if dist_name is None else dist_name
-            with open("{0}/{1}_{2}".format(self.res_dir, dtw_function.__name__, distance_name), 'wb') as f:
-                pickle.dump(info, f)
+            with open("{0}/{1}".format(self.res_dir, description), 'wb') as f:
+                dill.dump(info, f)
 
-        self.results.append((dtw_function.__name__, distance_function.__name__, datetime.datetime.now(),
-                             (end_time - start_time) / self.repeat_num))
+        self.results.append((description, datetime.datetime.now(), t))
 
         return info
 
@@ -81,12 +79,12 @@ class TestFactory:
 
     def dump_result(self):
         with open("{0}/results.pkl".format(self.res_dir), 'wb') as f:
-            pickle.dump(self.results, f)
+            dill.dump(self.results, f)
 
     @staticmethod
     def load(file):
         with open(file, 'rb') as f:
-            return pickle.load(f)
+            return dill.load(f)
 
     def set_sample(self, n=-1):
         if n > 0:
@@ -109,14 +107,18 @@ class ClusteredInfo:
     @staticmethod
     def load(f):
         with open(f, 'rb') as f:
-            return pickle.load(f)
+            return dill.load(f)
+
+    def cluster(self, cluster_num):
+        self.cluster_num = cluster_num
+        self.clusters_labels = fcluster(self.Z, cluster_num, criterion='maxclust')
 
     def visualize(self):
         fig = plt.figure(figsize=(25, 10))
         dn = dendrogram(self.Z)
     
-    def show_clustered(self, cluster_labels, ch=1, label=None, max_num=5):
-        idxs = np.where(cluster_labels == label)[0]
+    def show_chanel(self, ch=1, label=1, max_num=5):
+        idxs = np.where(self.clusters_labels == label)[0]
         time = np.linspace(0, self.element_length - 1, self.element_length)
         if max_num is None:
             num_graphs = len(idxs)
@@ -131,8 +133,8 @@ class ClusteredInfo:
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, cluster_labels, label, num_series=5):
-        idxs = np.where(cluster_labels == label)[0]
+    def clusters_compare_table(self, label, num_series=5):
+        idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
             return
@@ -150,18 +152,21 @@ class ClusteredInfo:
                 ax[df_id][ch - 1].xaxis.label.set_color('red')
                 ax[df_id][ch - 1].yaxis.label.set_color('red')
 
-    def allignment_to_random(self, cluster_labels, label, num_series=5, show_real_y=False):
-        idxs = np.where(cluster_labels == label)[0]
+    def allignment_to_random(self, label, num_series=5, max_chanel=5, show_real_y=False):
+        idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
+            return
+        showed_chanels_num = min(self.chanel_num, max_chanel)
+        if showed_chanels_num == 0:
             return
         align_to_id = np.random.choice(idxs)
         x_fixes = self.X[align_to_id]
 
-        fig, axs = plt.subplots(self.chanel_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * self.chanel_num), constrained_layout=False)
+        fig, axs = plt.subplots(showed_chanels_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * showed_chanels_num), constrained_layout=False)
         for (chanel_id, ax) in enumerate(axs):
-                x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
-                ax[0].plot(x, "black", label="X", linewidth=3)
+            x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+            ax[0].plot(x, "black", label="X", linewidth=3)
 
         for i in range(num_series):
             df_id = idxs[i]
