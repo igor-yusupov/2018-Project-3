@@ -58,7 +58,7 @@ class TestFactory:
 
         start_time = time.time()
         for i in range(self.repeat_num):
-            Z = linkage(X_reshaped, metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
+            Z = linkage(X_reshaped, 'average',metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
