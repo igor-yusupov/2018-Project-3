@@ -8,6 +8,7 @@ import os
 
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 from data_processing import DataIterator
+from models import Autoregression
 
 default_params = {
     "nrow": 100000,
@@ -29,7 +30,7 @@ class TestFactory:
         self.window_size = params["window_size"]
         self.element_length = params["element_length"]
         self.standart_sample_size = params["sample_size"]
-        data = pd.read_csv('../data/Eye-Motion/ECoG.csv', header=0, nrows=params["nrow"])
+        data = pd.read_csv("../data/Eye-Motion/ECoG.csv", header=0, nrows=params["nrow"])
         self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
         self.chanel_num = params["chanel_num"]
         self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
@@ -58,16 +59,41 @@ class TestFactory:
 
         start_time = time.time()
         for i in range(self.repeat_num):
-            Z = linkage(X_reshaped, 'average',metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
+            Z = linkage(X_reshaped, "average", metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
-        info = ClusteredInfo(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
+        info = ClusteredInfoDTW(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
         if dump_result:
-            with open("{0}/{1}".format(self.res_dir, description), 'wb') as f:
+            with open("{0}/{1}".format(self.res_dir, description), "wb") as f:
                 dill.dump(info, f)
 
         self.results.append((description, datetime.datetime.now(), t))
+
+        return info
+
+    def ar_clustering(self, window_size=10, dump_result=False, description=None, normalization=False):
+        start_time = time.time()
+        ar_models = []
+        for (i, x) in enumerate(self.X):
+            ar = Autoregression(x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)], window_size, normalization)
+            ar.fit()
+            ar_models.append(ar.coeffecients())
+            print("Trained: {0}".format(i + 1))
+
+        coeffs = []
+        for model in ar_models:
+            coeff = [np.array(np.concatenate([x.detach().numpy() for x in chanel], axis=0)) for chanel in model]
+            coeffs.append(np.concatenate(coeff, axis=0))
+        coeffs = np.array(coeffs)
+        end_time = time.time()
+        Z = linkage(coeffs, "ward")
+        t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
+        print("Elapsed time: {0}".format(t))
+        info = ClusteredInfoAR(self.X, Z, self.element_length, coeffs, self.chanel_num)
+        if dump_result:
+            with open("{0}/{1}".format(self.res_dir, description), "wb") as f:
+                dill.dump(info, f)
 
         return info
 
@@ -78,12 +104,12 @@ class TestFactory:
         return lambda x, y: (dtw_function(x, y, distance_function, **dtw_args))
 
     def dump_result(self):
-        with open("{0}/results.pkl".format(self.res_dir), 'wb') as f:
+        with open("{0}/results.pkl".format(self.res_dir), "wb") as f:
             dill.dump(self.results, f)
 
     @staticmethod
     def load(file):
-        with open(file, 'rb') as f:
+        with open(file, "rb") as f:
             return dill.load(f)
 
     def set_sample(self, n=-1):
@@ -94,24 +120,22 @@ class TestFactory:
 
 class ClusteredInfo:
 
-    def __init__(self, X, Z, element_length, dtw, chanel_num, description=None):
+    def __init__(self, X, Z, element_length, chanel_num, description=None):
         self.X = X
         self.Z = Z
         self.element_length = element_length
         self.description = description
         self.count = len(X)
-        self.paths = dict()
-        self.dtw = dtw
         self.chanel_num = chanel_num
     
     @staticmethod
     def load(f):
-        with open(f, 'rb') as f:
+        with open(f, "rb") as f:
             return dill.load(f)
 
     def cluster(self, cluster_num):
         self.cluster_num = cluster_num
-        self.clusters_labels = fcluster(self.Z, cluster_num, criterion='maxclust')
+        self.clusters_labels = fcluster(self.Z, cluster_num, criterion="maxclust")
 
     def visualize(self):
         fig = plt.figure(figsize=(25, 10))
@@ -133,25 +157,41 @@ class ClusteredInfo:
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, label, num_series=5):
+    def clusters_compare_table(self, label, num_series=5, max_chanels=7):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
+        chanels = min(self.chanel_num, max_chanels)
         if num_series == 0:
             return
-        fig, ax = plt.subplots(num_series, self.chanel_num, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
+
+        fig, ax = plt.subplots(num_series, chanels, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
         t = self.X[0].loc[:, "ECoG_time"]
         for df_id in range(num_series):
-            for ch in range(1, self.chanel_num + 1):
+            for ch in range(1, chanels + 1):
                 x = self.X[df_id].loc[:, "ECoG_ch{0}".format(ch)].values
                 ax[df_id][ch - 1].plot(t, x)
                 if df_id == 0:
-                    ax[df_id][ch - 1].set_xlabel('ch{}'.format(ch), fontsize=14)
+                    ax[df_id][ch - 1].set_xlabel("ch{}".format(ch), fontsize=14)
                 if ch == 1:
-                    ax[df_id][ch - 1].set_ylabel('ts{}'.format(df_id + 1),fontsize=14)
-                ax[df_id][ch - 1].xaxis.set_label_position('top')
-                ax[df_id][ch - 1].xaxis.label.set_color('red')
-                ax[df_id][ch - 1].yaxis.label.set_color('red')
+                    ax[df_id][ch - 1].set_ylabel("ts{}".format(df_id + 1),fontsize=14)
+                ax[df_id][ch - 1].xaxis.set_label_position("top")
+                ax[df_id][ch - 1].xaxis.label.set_color("red")
+                ax[df_id][ch - 1].yaxis.label.set_color("red")
 
+
+class ClusteredInfoAR(ClusteredInfo):
+    def __init__(self, X, Z, element_length, coeffs, chanel_num, description=None):
+        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description)
+        self.coeffs = coeffs
+
+
+class ClusteredInfoDTW(ClusteredInfo):
+
+    def __init__(self, X, Z, element_length, dtw, chanel_num, description=None):
+        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description)
+        self.paths = dict()
+        self.dtw = dtw
+  
     def allignment_to_random(self, label, num_series=5, max_chanel=5, show_real_y=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
@@ -191,6 +231,5 @@ class ClusteredInfo:
                 if show_real_y:
                     ax[0].plot(y, label="y ts:{0}".format(df_id))
                     for (map_x, map_y) in np.array(path).transpose():
-                        plt.plot([map_x, map_y], [x[map_x], y[map_y]], 'black', linewidth=0.3)
+                        plt.plot([map_x, map_y], [x[map_x], y[map_y]], "black", linewidth=0.3)
                 ax[0].legend(loc=1)
-

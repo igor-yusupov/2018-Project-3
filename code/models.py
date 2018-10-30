@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import torch
 
+from sklearn.preprocessing import normalize
+
 class Autoregression:
     """Model calculates coefficients for autoregression model.
 
@@ -11,11 +13,13 @@ class Autoregression:
         y (torch.Tensor): prepared target.
     """
 
-    def __init__(self, data, window_size):
+    def __init__(self, data, window_size, normalization=False):
         self.data = data
         self.window_size = window_size
         self.chanel_num = data.loc[:, "ECoG_ch1":].shape[1]
         x = data.loc[:, "ECoG_ch1":].values
+        if normalization:
+            x = normalize(x)
         X = np.array([x[predict-window_size : predict].reshape(x.shape[1], -1) for predict in range(window_size, x.shape[0], 1)])
         y = np.array([x[predict] for predict in range(window_size, x.shape[0], 1)])
         with torch.no_grad():
@@ -27,14 +31,14 @@ class Autoregression:
         for i in range(self.chanel_num):
             self.learnable_functions.append(torch.nn.Linear(window_size, 1))
             self.params.extend(list(self.learnable_functions[-1].parameters()))
-        self.optimizer = torch.optim.Adagrad(self.params, lr=10.)
+        self.optimizer = torch.optim.Adadelta(self.params, lr=1000.)
         self.norm = torch.nn.MSELoss()
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=700, gamma=0.99)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=0.1)
 
         self._predicted_series = None
 
-    def fit(self, window_size):
-        for i in range(4000):
+    def fit(self):
+        for i in range(100):
             loss = 0
             for (chanel_id, fun) in enumerate(self.learnable_functions):
                 out = fun(self.X[chanel_id])
@@ -42,10 +46,7 @@ class Autoregression:
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
-            self.lr_scheduler.step()
-            
-            if i % 2000 == 0:
-                print("Loss: {0:0.3f}".format(loss))
+            self.lr_scheduler.step()     
 
             del loss
 
