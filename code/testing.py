@@ -136,6 +136,9 @@ class ClusteredInfo:
     def cluster(self, cluster_num):
         self.cluster_num = cluster_num
         self.clusters_labels = fcluster(self.Z, cluster_num, criterion="maxclust")
+        unique_elements, counts_elements = np.unique(self.clusters_labels, return_counts=True)
+        self.stats = pd.DataFrame(index=unique_elements, data=counts_elements, columns=["count"])
+        self.stats = self.stats.sort_values(by="count", ascending=False)
 
     def visualize(self):
         fig = plt.figure(figsize=(25, 10))
@@ -148,7 +151,7 @@ class ClusteredInfo:
             num_graphs = len(idxs)
         else:
             num_graphs = np.min([max_num, len(idxs)])
-        fig, ax = plt.subplots(num_graphs, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * num_graphs),
+        fig, ax = plt.subplots(num_graphs, 1, sharex=True, squeeze=False, figsize=(15, 2.5 * num_graphs),
                             constrained_layout=False)
         fig.suptitle("Chanel {0} of {1} cluster".format(ch, label), y=1, fontsize = 14);
         for i in range(num_graphs):
@@ -157,18 +160,20 @@ class ClusteredInfo:
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, label, num_series=5, max_chanels=7):
+    def clusters_compare_table(self, label, num_series=5, max_chanels=5):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         chanels = min(self.chanel_num, max_chanels)
         if num_series == 0:
             return
 
-        fig, ax = plt.subplots(num_series, chanels, sharex=True, squeeze=False, figsize=(18, 2.5 * num_series), constrained_layout=False)
+        fig, ax = plt.subplots(num_series, chanels, sharex=True, squeeze=False, figsize=(20, 2.5 * num_series), constrained_layout=False)
+        fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
+        
         t = self.X[0].loc[:, "ECoG_time"]
         for df_id in range(num_series):
             for ch in range(1, chanels + 1):
-                x = self.X[df_id].loc[:, "ECoG_ch{0}".format(ch)].values
+                x = self.X[idxs[df_id]].loc[:, "ECoG_ch{0}".format(ch)].values
                 ax[df_id][ch - 1].plot(t, x)
                 if df_id == 0:
                     ax[df_id][ch - 1].set_xlabel("ch{}".format(ch), fontsize=14)
@@ -177,6 +182,29 @@ class ClusteredInfo:
                 ax[df_id][ch - 1].xaxis.set_label_position("top")
                 ax[df_id][ch - 1].xaxis.label.set_color("red")
                 ax[df_id][ch - 1].yaxis.label.set_color("red")
+        
+        plt.tight_layout();
+
+    def compating_at_one(self, label, num_series=5, max_chanel=5):
+        idxs = np.where(self.clusters_labels == label)[0]
+        num_series = min(len(idxs), num_series)
+        if num_series == 0:
+            return
+        showed_chanels_num = min(self.chanel_num, max_chanel)
+        if showed_chanels_num == 0:
+            return
+
+        fig, axs = plt.subplots(showed_chanels_num, 1, sharex=True, squeeze=False, figsize=(15, 2.5 * showed_chanels_num), constrained_layout=False)
+        fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
+
+        for i in range(num_series):
+            df_id = idxs[i]
+            for (chanel_id, ax) in enumerate(axs):
+                ax[0].set_title("Chanel {0}".format(chanel_id))
+                y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                ax[0].plot(y, label="y ts:{0}".format(df_id))
+
+        plt.tight_layout();
 
 
 class ClusteredInfoAR(ClusteredInfo):
@@ -203,7 +231,9 @@ class ClusteredInfoDTW(ClusteredInfo):
         align_to_id = np.random.choice(idxs)
         x_fixes = self.X[align_to_id]
 
-        fig, axs = plt.subplots(showed_chanels_num, 1, sharex=True, squeeze=False, figsize=(18, 2.5 * showed_chanels_num), constrained_layout=False)
+        fig, axs = plt.subplots(showed_chanels_num, 1, sharex=True, squeeze=False, figsize=(15, 2.5 * showed_chanels_num), constrained_layout=False)
+        fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
+
         for (chanel_id, ax) in enumerate(axs):
             x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
             ax[0].plot(x, "black", label="X", linewidth=3)
@@ -232,4 +262,6 @@ class ClusteredInfoDTW(ClusteredInfo):
                     ax[0].plot(y, label="y ts:{0}".format(df_id))
                     for (map_x, map_y) in np.array(path).transpose():
                         plt.plot([map_x, map_y], [x[map_x], y[map_y]], "black", linewidth=0.3)
-                ax[0].legend(loc=1)
+                # ax[0].legend(loc=1)
+
+        plt.tight_layout();
