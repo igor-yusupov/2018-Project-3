@@ -25,18 +25,25 @@ default_params = {
 
 class TestFactory:
 
-    def __init__(self, params=default_params, random_state=-1):
+    def __init__(self, params=default_params, random_state=-1, it=None):
         self.data_path = params["path"]
         self.window_size = params["window_size"]
         self.element_length = params["element_length"]
         self.standart_sample_size = params["sample_size"]
-        data = pd.read_csv("../data/Eye-Motion/ECoG.csv", header=0, nrows=params["nrow"])
-        self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
+        data = pd.read_csv(params["path"], header=0, nrows=params["nrow"])
+        if it != None:
+            self.data_iterator = it
+        else:
+            self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
         self.chanel_num = params["chanel_num"]
-        self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
+        if type(self.data_iterator) is DataIterator:
+            self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
+        else:
+            self.shape = next(self.data_iterator)[0].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
         self.repeat_num = params["repeat_num"]
         self.results = []
         self.X = None
+        self.classification_label = None
         counter = 0
         folders = os.listdir("../data/results/")
         while str(counter) in folders:
@@ -45,7 +52,17 @@ class TestFactory:
         os.mkdir("../data/results/{0}".format(counter))
 
     def get_n(self, n):
-        return [next(self.data_iterator) for i in range(n)]
+        if type(self.data_iterator) is DataIterator:
+            return [next(self.data_iterator) for i in range(n)]
+        else:
+            items = []
+            labels = []
+            for i in range(n):
+                item, label = next(self.data_iterator)
+                items.append(item)
+                labels.append(label)
+
+            return items, np.array(labels)
 
     def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}):
         if sample_size < 0:
@@ -63,7 +80,8 @@ class TestFactory:
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
-        info = ClusteredInfoDTW(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args), self.chanel_num)
+        info = ClusteredInfoDTW(self.X, Z, self.element_length, self.dtw(dtw_function, distance_function, dtw_args),
+                                self.chanel_num, label=self.classification_label)
         if dump_result:
             with open("{0}/{1}".format(self.res_dir, description), "wb") as f:
                 dill.dump(info, f)
@@ -90,7 +108,7 @@ class TestFactory:
         Z = linkage(coeffs, "ward")
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
-        info = ClusteredInfoAR(self.X, Z, self.element_length, coeffs, self.chanel_num)
+        info = ClusteredInfoAR(self.X, Z, self.element_length, coeffs, self.chanel_num, label=self.classification_label)
         if dump_result:
             with open("{0}/{1}".format(self.res_dir, description), "wb") as f:
                 dill.dump(info, f)
@@ -113,20 +131,28 @@ class TestFactory:
             return dill.load(f)
 
     def set_sample(self, n=-1):
-        if n > 0:
-            self.X = self.get_n(n)
-        return self.X
+        if type(self.data_iterator) is DataIterator:
+            if n > 0:
+                self.X = self.get_n(n)
+            return self.X
+        else:
+            items, labels = self.get_n(n)
+            self.X = items
+            self.classification_label = labels
+            return items, labels
 
 
 class ClusteredInfo:
 
-    def __init__(self, X, Z, element_length, chanel_num, description=None):
+    def __init__(self, X, Z, element_length, chanel_num, description=None, label=None):
         self.X = X
         self.Z = Z
         self.element_length = element_length
         self.description = description
         self.count = len(X)
         self.chanel_num = chanel_num
+        if label is not None:
+            self.label = label
     
     @staticmethod
     def load(f):
@@ -208,15 +234,15 @@ class ClusteredInfo:
 
 
 class ClusteredInfoAR(ClusteredInfo):
-    def __init__(self, X, Z, element_length, coeffs, chanel_num, description=None):
-        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description)
+    def __init__(self, X, Z, element_length, coeffs, chanel_num, description=None, label=None):
+        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description, label)
         self.coeffs = coeffs
 
 
 class ClusteredInfoDTW(ClusteredInfo):
 
-    def __init__(self, X, Z, element_length, dtw, chanel_num, description=None):
-        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description)
+    def __init__(self, X, Z, element_length, dtw, chanel_num, description=None, label=None):
+        ClusteredInfo.__init__(self, X, Z, element_length, chanel_num, description, label)
         self.paths = dict()
         self.dtw = dtw
   
