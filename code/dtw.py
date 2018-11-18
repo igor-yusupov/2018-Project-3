@@ -5,7 +5,6 @@ from scipy.spatial.distance import cdist
 from scipy.stats.mstats import zscore
 
 
-
 def dtw(x, y, dist, warp=1):
     """
     Computes Dynamic Time Warping (DTW) of two sequences.
@@ -18,7 +17,7 @@ def dtw(x, y, dist, warp=1):
     """
     # assert len(x)
     # assert len(y)
-	
+
     r, c = len(x), len(y)
     D0 = zeros((r + 1, c + 1))
     D0[0, 1:] = inf
@@ -37,11 +36,13 @@ def dtw(x, y, dist, warp=1):
                 min_list += [D0[i_k, j], D0[i, j_k]]
             D1[i, j] += min(min_list)
 
-    path, distance, tax = _traceback(D0)
+    path, distance = _traceback(D0)
     return D1[-1, -1] / sum(D1.shape), C, D1, path
 
 
-def dtw_ln(x, y, dist, warp=1, l=0.3, zscr=False, taxes=False):
+def dtw_ln(a, b, dist, warp=1, l=0.3, zscr=True):
+    x = a.copy()
+    y = b.copy()
     if zscr:
         zscore(x)
         zscore(y)
@@ -70,13 +71,8 @@ def dtw_ln(x, y, dist, warp=1, l=0.3, zscr=False, taxes=False):
                 min_list += [D0[i_k, j], D0[i, j_k]]
             D1[i, j] += min(min_list)
 
-    path, distance, tax = _traceback(D0, taxes)
+    path, distance = _traceback(D0)
 
-    if (taxes):
-        if tax >= len(x) * 3 / 10:
-            distance *= 100
-        else:
-            distance *= (1 + tax * 10 / len(x))
     return distance, C, D1, path
 
 
@@ -122,7 +118,7 @@ def accelerated_dtw(x, y, dist, warp=1):
     return D1[-1, -1] / sum(D1.shape), C, D1, path
 
 
-def _traceback(D, lc=100):
+def _traceback(D):
     i, j = array(D.shape) - 2
     p, q = [i], [j]
     distance = 0
@@ -139,12 +135,10 @@ def _traceback(D, lc=100):
         else:  # (tb == 2):
             distance += D[i+1, j]
             j -= 1
-        if abs(i-j) == lc:
-            tax += 1
 
         p.insert(0, i)
         q.insert(0, j)
-    return [array(p), array(q)], distance, tax
+    return [array(p), array(q)], distance
 
 
 if __name__ == '__main__':
