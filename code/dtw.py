@@ -122,18 +122,20 @@ def _traceback(D):
     i, j = array(D.shape) - 2
     p, q = [i], [j]
     distance = 0
-    tax = 0
     while (i > 0) or (j > 0):
         tb = argmin((D[i, j], D[i, j+1], D[i+1, j]))
         if tb == 0:
-            distance += D[i, j]
+            if i > 5 < 45 and j > 5 < 45:
+                distance += D[i, j]
             i -= 1
             j -= 1
         elif tb == 1:
-            distance += D[i, j+1]
+            if i > 5 < 45 and j > 5 < 45:
+                distance += D[i, j+1]
             i -= 1
         else:  # (tb == 2):
-            distance += D[i+1, j]
+            if i > 5 < 45 and j > 5 < 45:
+                distance += D[i+1, j]
             j -= 1
 
         p.insert(0, i)
