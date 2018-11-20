@@ -1,3 +1,5 @@
+from random import choice
+
 import numpy as np
 import pandas as pd
 
@@ -41,6 +43,16 @@ class OneDimDataIterator(StopIteration):
         self.position = 0
         self.random_state = random_state
         self.labels = data.iloc[:, 0]
+        self.labeled_indexes = dict()
+        self.labeled_positions = dict()
+        for label in self.labels.unique():
+            self.labeled_indexes[label] = self.labels[self.labels == 4].index.values.copy()
+            self.labeled_positions[label] = 0
+            if shuffle:
+                if random_state != -1:
+                    np.random.shuffle(self.labeled_indexes[label], random_state=random_state)
+                else:
+                    np.random.shuffle(self.labeled_indexes[label])
         shuffle_set(self.indexes)
         if shuffle:
             if random_state != -1:
@@ -52,13 +64,15 @@ class OneDimDataIterator(StopIteration):
         return self
 
     def __next__(self):
-        if self.position < len(self.indexes) - 1:
-            start = np.random.randint(1, 599 - self.element_length)
-            self.position += 1
-            ret = pd.DataFrame({"ECoG_time" : pd.RangeIndex(0, self.element_length),
-                                "ECoG_ch1": self.data.loc[self.indexes[self.position], start:start + self.element_length - 1]})
+        class_label = choice(list(self.labeled_indexes.keys()))
+        if class_label is not None:
+            if self.labeled_positions[class_label] < len(self.labeled_indexes[class_label]) - 1:
+                start = np.random.randint(1, 599 - self.element_length)
+                self.labeled_positions[class_label] += 1
+                ret = pd.DataFrame({"ECoG_time": pd.RangeIndex(0, self.element_length),
+                                    "ECoG_ch1": self.data.loc[self.labeled_indexes[class_label][self.labeled_positions[class_label]],
+                                                start:start + self.element_length - 1]})
 
-            return ret, self.labels[self.indexes[self.position]]
+                return ret, class_label
 
         raise StopIteration
-
