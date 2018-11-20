@@ -2,7 +2,7 @@ import numpy as np
 import dill
 
 from os.path import exists
-from time import time
+from time import time, sleep
 from threading import Thread
 
 class DtwWrapper:
@@ -11,7 +11,8 @@ class DtwWrapper:
     def __init__(self, items, items_hash, dtw_function, distance_function, dtw_args={}, ch_num=1):
         self.items = items
         self.chanel_num = ch_num
-        self.dtw_name = "{0}{1}{2}{3}{4}".format(dtw_function.__name__, dtw_function.__name__, str(dtw_args), items_hash, ch_num)
+        str_args = "".join(["{}{}".format(key, dtw_args[key]) for key in dtw_args])
+        self.dtw_name = "{0}{1}{2}{3}{4}".format(dtw_function.__name__, dtw_function.__name__, str_args, items_hash, ch_num)
         self.series_distance = self.dtw_dist(dtw_function, distance_function, dtw_args)
         self.shape = items[0].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
         self.X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.items])
@@ -46,8 +47,20 @@ class DtwWrapper:
         for th in ths:
             th.start()
             
+        for i in range(1000):
+            alive = True
+            for th in ths:
+                alive &= th.is_alive()
+            if not alive:
+                break
+            sleep(5)
+            if i == 1:
+                self.dump()
+
         for th in ths:
             th.join()
+        
+        self.dump()
             
         print(time() - t)
 
@@ -78,3 +91,5 @@ class DtwWrapper:
             for i in prev_indexes:
                 for j in indexes:
                     self.distances[i, j] = f(i, j)
+        
+        return
