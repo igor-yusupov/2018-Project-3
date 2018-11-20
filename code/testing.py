@@ -57,12 +57,14 @@ class TestFactory:
         else:
             items = []
             labels = []
+            infos = []
             for i in range(n):
-                item, label = next(self.data_iterator)
+                item, label, info = next(self.data_iterator)
                 items.append(item)
                 labels.append(label)
+                infos.append(info)
 
-            return items, np.array(labels)
+            return items, np.array(labels), infos
 
     def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}):
         if sample_size < 0:
@@ -130,15 +132,21 @@ class TestFactory:
         with open(file, "rb") as f:
             return dill.load(f)
 
-    def set_sample(self, n=-1):
+    def set_sample(self, n=-1, items=None, labels=None):
+        if items is not None and labels is not None:
+            self.X = items
+            self.classification_label = labels
+            return items, labels
+
         if type(self.data_iterator) is DataIterator:
             if n > 0:
                 self.X = self.get_n(n)
             return self.X
         else:
-            items, labels = self.get_n(n)
+            items, labels, infos = self.get_n(n)
             self.X = items
             self.classification_label = labels
+            self.infos = tuple(infos)
             return items, labels
 
 
