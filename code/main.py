@@ -25,6 +25,6 @@ if __name__ == '__main__':
 	it = OneDimDataIterator(data, params["element_length"])
 
 	tests = TestFactory(params, random_state=42, it=it)
-	X = tests.set_sample(40)
+	X = tests.set_sample(2000)
 	dtw = DtwWrapper(X[0], hash(tests.infos), dtw_ln, lambda x, y: np.linalg.norm(x - y), dtw_args={"l": 0.2, "zscr": True})
 	dtw.fill_distances()

@@ -9,6 +9,7 @@ import os
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 from data_processing import DataIterator
 from models import Autoregression
+from dtw_wrapper import DtwWrapper
 
 default_params = {
     "nrow": 100000,
@@ -73,12 +74,13 @@ class TestFactory:
         if self.X is None:
             self.set_sample(sample_size)
 
-        X_reshaped = np.array(
-            [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.X])
+        self.dtw_wrapper = DtwWrapper(self.X, hash(self.infos), dtw_function, distance_function, dtw_args=dtw_args)
+        # X_reshaped = np.array(
+        #     [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.X])
 
         start_time = time.time()
         for i in range(self.repeat_num):
-            Z = linkage(X_reshaped, "average", metric=self.dtw_dist(dtw_function, distance_function, dtw_args))
+            Z = linkage(np.linspace(0, len(self.X), dtype=int), "average", metric=self.dtw_wrapper)
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
