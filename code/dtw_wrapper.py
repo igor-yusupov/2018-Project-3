@@ -6,6 +6,10 @@ from time import time, sleep
 from threading import Thread, Lock
 
 class DtwWrapper:
+    """Wrapper for dtw functions
+    Number of series must divide by 4
+    
+    """
     num_th = 4
 
     def __init__(self, items, items_hash, dtw_function, distance_function, dtw_args={}, ch_num=1):
@@ -23,16 +27,13 @@ class DtwWrapper:
             self.distances = np.full((len(items), len(items)), -1., dtype=float)
 
     def dist(self, x_index, y_index):
-        if self.distances[x_index, y_index] == -1:
-            if self.distances[y_index, x_index] != -1:
-                dist = self.distances[y_index, x_index]
-            else:
-                dist = self.series_distance(
-                    self.X_reshaped[x_index],
-                    self.X_reshaped[y_index]
-                )
-            self.distances[x_index, y_index] = dist
-            self.distances[y_index, x_index] = dist
+        if self.distances[x_index, y_index] != -1:
+            return self.distances[y_index, x_index]
+
+        self.distances[x_index, y_index] = self.series_distance(
+            self.X_reshaped[x_index],
+            self.X_reshaped[y_index]
+        )
 
         return self.distances[x_index, y_index]
 
@@ -55,50 +56,22 @@ class DtwWrapper:
                 alive &= th.is_alive()
             if not alive:
                 break
-            sleep(10)
+            sleep(15)
             print("dump")
             self.dump()
 
         for th in ths:
             th.join()
         
-        self.dump()
-            
+        self.dump()    
         print(time() - t)
 
     def computer(self, n, f, lock):
         size = len(self.items)
-        bound_n = lambda n: list(range(n * size // 4, (n + 1) * size // 4))
-        indexes = bound_n(n)
+        short_size = size // 4
 
-        for i in indexes:
-            for j in range(indexes[0], i + 1):
-                d_cur = f(i, j)
-                with lock:
-                    self.distances[i, j] = f(i, j)
+        for i in range(size):
+            for j in range(n * short_size, (n + 1) * short_size):
+                self.distances[i, j] = f(i, j)
 
-
-        if n + 1 < DtwWrapper.num_th:
-            next_indexes = bound_n(n + 1)
-            for i in next_indexes:
-                d_cur = f(i, j)
-                with lock:
-                    self.distances[i, j] = f(i, j)
-
-        if n == 3:
-            prev_indexes = bound_n(0)
-            for i in indexes:
-                for j in prev_indexes:
-                    d_cur = f(i, j)
-                    with lock:
-                        self.distances[i, j] = f(i, j)
-
-        if n < 2:
-            prev_indexes = bound_n(n + 2)
-            for i in prev_indexes:
-                for j in indexes:
-                    d_cur = f(i, j)
-                    with lock:
-                        self.distances[i, j] = f(i, j)
-            
         return
