@@ -226,7 +226,7 @@ class ClusteredInfo:
         
         plt.tight_layout();
 
-    def compating_at_one(self, label, num_series=5, max_chanel=5):
+    def comparing_at_one(self, label, num_series=5, max_chanel=5):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
