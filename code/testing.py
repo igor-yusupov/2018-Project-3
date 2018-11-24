@@ -79,8 +79,13 @@ class TestFactory:
         #     [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.X])
 
         start_time = time.time()
+        # Kostyl 
+        # TODO: Fix this shit
+        f = lambda x, y: self.dtw_wrapper.dist(x[0], y[0])
+
         for i in range(self.repeat_num):
-            Z = linkage(np.linspace(0, len(self.X), dtype=int), "average", metric=self.dtw_wrapper)
+            Z = linkage(
+                np.linspace(0, len(self.X) - 1, len(self.X), dtype=int).reshape(-1, 1), "average", metric=f)
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))

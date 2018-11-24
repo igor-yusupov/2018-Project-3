@@ -8,7 +8,7 @@ from threading import Thread, Lock
 class DtwWrapper:
     """Wrapper for dtw functions
     Number of series must divide by 4
-    
+
     """
     num_th = 4
 
@@ -27,8 +27,10 @@ class DtwWrapper:
             self.distances = np.full((len(items), len(items)), -1., dtype=float)
 
     def dist(self, x_index, y_index):
+        x_index = int(x_index)
+        y_index = int(y_index)
         if self.distances[x_index, y_index] != -1:
-            return self.distances[y_index, x_index]
+            return self.distances[x_index, y_index]
 
         self.distances[x_index, y_index] = self.series_distance(
             self.X_reshaped[x_index],
@@ -56,9 +58,9 @@ class DtwWrapper:
                 alive &= th.is_alive()
             if not alive:
                 break
-            sleep(15)
             print("dump")
             self.dump()
+            sleep(100)
 
         for th in ths:
             th.join()
