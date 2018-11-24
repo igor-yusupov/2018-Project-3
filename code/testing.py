@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import os
 
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from scipy.stats import zscore
 from data_processing import DataIterator
 from models import Autoregression
 from dtw_wrapper import DtwWrapper
@@ -201,7 +202,7 @@ class ClusteredInfo:
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, label, num_series=5, max_chanels=5):
+    def clusters_compare_table(self, label, num_series=5, max_chanels=5, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         chanels = min(self.chanel_num, max_chanels)
@@ -215,6 +216,8 @@ class ClusteredInfo:
         for df_id in range(num_series):
             for ch in range(1, chanels + 1):
                 x = self.X[idxs[df_id]].loc[:, "ECoG_ch{0}".format(ch)].values
+                if z_normalize:
+                    x = zscore(x)
                 ax[df_id][ch - 1].plot(t, x)
                 if df_id == 0:
                     ax[df_id][ch - 1].set_xlabel("ch{}".format(ch), fontsize=14)
@@ -226,7 +229,7 @@ class ClusteredInfo:
         
         plt.tight_layout();
 
-    def comparing_at_one(self, label, num_series=5, max_chanel=5):
+    def comparing_at_one(self, label, num_series=5, max_chanel=5, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
@@ -243,6 +246,8 @@ class ClusteredInfo:
             for (chanel_id, ax) in enumerate(axs):
                 ax[0].set_title("Chanel {0}".format(chanel_id))
                 y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                if z_normalize:
+                    y = zscore(y)
                 ax[0].plot(y, label="y ts:{0}".format(df_id))
 
         plt.tight_layout();
@@ -261,7 +266,7 @@ class ClusteredInfoDTW(ClusteredInfo):
         self.paths = dict()
         self.dtw = dtw
   
-    def allignment_to_random(self, label, num_series=5, max_chanel=5, show_real_y=False):
+    def allignment_to_random(self, label, num_series=5, max_chanel=5, show_real_y=False, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
@@ -277,6 +282,8 @@ class ClusteredInfoDTW(ClusteredInfo):
 
         for (chanel_id, ax) in enumerate(axs):
             x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+            if z_normalize:
+                x = zscore(x)
             ax[0].plot(x, "black", label="X", linewidth=3)
 
         for i in range(num_series):
@@ -296,6 +303,8 @@ class ClusteredInfoDTW(ClusteredInfo):
 
             for (chanel_id, ax) in enumerate(axs):
                 y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                if z_normalize:
+                    y = zscore(y)
                 y_new = pd.DataFrame([y[i] for i in path[1]], index=path[0])
                 y_new = y_new.groupby(y_new.index).mean().values.reshape(-1)
                 ax[0].plot(y_new, label="y_new ts:{0}".format(df_id))
