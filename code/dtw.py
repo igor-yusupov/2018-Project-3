@@ -36,7 +36,7 @@ def dtw(x, y, dist, l=1, warp=1):
     
     path, path_cost = _traceback(distance_cost)
             
-    return path_cost, path, distance_cost, pairwise_distances
+    return path_cost, path, distance_cost[1:,1:], pairwise_distances
 
 def _traceback(D):
     i = D.shape[0] - 1
