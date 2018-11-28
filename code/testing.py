@@ -27,7 +27,7 @@ default_params = {
 
 class TestFactory:
 
-    def __init__(self, params=default_params, random_state=-1, it=None):
+    def __init__(self, it=None, params=default_params, random_state=-1):
         self.data_path = params["path"]
         self.window_size = params["window_size"]
         self.element_length = params["element_length"]
@@ -38,10 +38,6 @@ class TestFactory:
         else:
             self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
         self.chanel_num = params["chanel_num"]
-        if type(self.data_iterator) is DataIterator:
-            self.shape = next(self.data_iterator).loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
-        else:
-            self.shape = next(self.data_iterator)[0].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
         self.repeat_num = params["repeat_num"]
         self.results = []
         self.X = None
@@ -54,19 +50,16 @@ class TestFactory:
         os.mkdir("../data/results/{0}".format(counter))
 
     def get_n(self, n):
-        if type(self.data_iterator) is DataIterator:
-            return [next(self.data_iterator) for i in range(n)]
-        else:
-            items = []
-            labels = []
-            infos = []
-            for i in range(n):
-                item, label, info = next(self.data_iterator)
-                items.append(item)
-                labels.append(label)
-                infos.append(info)
+        items = []
+        labels = []
+        infos = []
+        for i in range(n):
+            item, label, info = next(self.data_iterator)
+            items.append(item)
+            labels.append(label)
+            infos.append(info)
 
-            return items, np.array(labels), infos
+        return items, np.array(labels), infos
 
     def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}):
         if sample_size < 0:
@@ -76,8 +69,6 @@ class TestFactory:
             self.set_sample(sample_size)
 
         self.dtw_wrapper = DtwWrapper(self.X, hash(self.infos), dtw_function, distance_function, dtw_args=dtw_args)
-        # X_reshaped = np.array(
-        #     [x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.X])
 
         start_time = time.time()
         # Kostyl 
@@ -97,14 +88,14 @@ class TestFactory:
                 dill.dump(info, f)
 
         self.results.append((description, datetime.datetime.now(), t))
-
+ 
         return info
 
     def ar_clustering(self, window_size=10, dump_result=False, description=None, normalization=False):
         start_time = time.time()
         ar_models = []
         for (i, x) in enumerate(self.X):
-            ar = Autoregression(x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)], window_size, normalization)
+            ar = Autoregression(x[:, 0: self.chanel_num], window_size, normalization)
             ar.fit()
             ar_models.append(ar.coeffecients())
             print("Trained: {0}".format(i + 1))
@@ -125,9 +116,6 @@ class TestFactory:
 
         return info
 
-    def dtw_dist(self, dtw_function, distance_function, dtw_args):
-        return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
-
     def dtw(self, dtw_function, distance_function, dtw_args):
         return lambda x, y: (dtw_function(x, y, distance_function, **dtw_args))
 
@@ -146,16 +134,11 @@ class TestFactory:
             self.classification_label = labels
             return items, labels
 
-        if type(self.data_iterator) is DataIterator:
-            if n > 0:
-                self.X = self.get_n(n)
-            return self.X
-        else:
-            items, labels, infos = self.get_n(n)
-            self.X = items
-            self.classification_label = labels
-            self.infos = tuple(infos)
-            return items, labels
+        items, labels, infos = self.get_n(n)
+        self.X = items
+        self.classification_label = labels
+        self.infos = tuple(infos)
+        return items, labels
 
 
 class ClusteredInfo:
@@ -197,12 +180,12 @@ class ClusteredInfo:
                             constrained_layout=False)
         fig.suptitle("Chanel {0} of {1} cluster".format(ch, label), y=1, fontsize = 14);
         for i in range(num_graphs):
-            ax[i][0].plot(time, self.X[idxs[i]].loc[:, "ECoG_ch{}".format(ch)]);
+            ax[i][0].plot(time, self.X[idxs[i]][:, ch]);
             ax[i][0].grid()
                 
         plt.tight_layout();
 
-    def clusters_compare_table(self, label, num_series=5, max_chanels=5, z_normalize=False):
+    def clusters_compare_table(self, label, num_series=3, max_chanels=3, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         chanels = min(self.chanel_num, max_chanels)
@@ -212,10 +195,10 @@ class ClusteredInfo:
         fig, ax = plt.subplots(num_series, chanels, sharex=True, squeeze=False, figsize=(20, 2.5 * num_series), constrained_layout=False)
         fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
         
-        t = self.X[0].loc[:, "ECoG_time"]
+        t = np.linspace(0, self.element_length - 1, self.element_length, dtype=int)
         for df_id in range(num_series):
-            for ch in range(1, chanels + 1):
-                x = self.X[idxs[df_id]].loc[:, "ECoG_ch{0}".format(ch)].values
+            for ch in range(0, chanels):
+                x = self.X[idxs[df_id]][:, ch]
                 if z_normalize:
                     x = zscore(x)
                 ax[df_id][ch - 1].plot(t, x)
@@ -229,7 +212,7 @@ class ClusteredInfo:
         
         plt.tight_layout();
 
-    def comparing_at_one(self, label, num_series=5, max_chanel=5, z_normalize=False):
+    def comparing_at_one(self, label, num_series=3, max_chanel=3, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
@@ -245,7 +228,7 @@ class ClusteredInfo:
             df_id = idxs[i]
             for (chanel_id, ax) in enumerate(axs):
                 ax[0].set_title("Chanel {0}".format(chanel_id))
-                y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                y = self.X[df_id][:, chanel_id]
                 if z_normalize:
                     y = zscore(y)
                 ax[0].plot(y, label="y ts:{0}".format(df_id))
@@ -266,7 +249,7 @@ class ClusteredInfoDTW(ClusteredInfo):
         self.paths = dict()
         self.dtw = dtw
   
-    def allignment_to_random(self, label, num_series=5, max_chanel=5, show_real_y=False, z_normalize=False):
+    def allignment_to_random(self, label, num_series=5, max_chanel=3, show_real_y=False, z_normalize=False):
         idxs = np.where(self.clusters_labels == label)[0]
         num_series = min(len(idxs), num_series)
         if num_series == 0:
@@ -281,7 +264,7 @@ class ClusteredInfoDTW(ClusteredInfo):
         fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
 
         for (chanel_id, ax) in enumerate(axs):
-            x = x_fixes.loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+            x = x_fixes[:, chanel_id]
             if z_normalize:
                 x = zscore(x)
             ax[0].plot(x, "black", label="X", linewidth=3)
@@ -297,15 +280,15 @@ class ClusteredInfoDTW(ClusteredInfo):
             else:
                 if df_id not in self.paths:
                     self.paths[df_id] = dict()
-                path = self.dtw(x_fixes.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values, 
-                    self.X[df_id].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values)[3]
+                path = self.dtw(x_fixes[:, 0 : self.chanel_num], 
+                    self.X[df_id][:, 0 : self.chanel_num])[1]
                 self.paths[df_id][align_to_id] = path
 
             for (chanel_id, ax) in enumerate(axs):
-                y = self.X[df_id].loc[:, "ECoG_ch{0}".format(chanel_id + 1)].values
+                y = self.X[df_id][:, chanel_id]
                 if z_normalize:
                     y = zscore(y)
-                y_new = pd.DataFrame([y[i] for i in path[1]], index=path[0])
+                y_new = pd.DataFrame([y[i - 1] for i in path[1]], index=path[0])
                 y_new = y_new.groupby(y_new.index).mean().values.reshape(-1)
                 ax[0].plot(y_new, label="y_new ts:{0}".format(df_id))
                 if show_real_y:

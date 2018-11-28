@@ -4,7 +4,7 @@ from scipy.spatial.distance import cdist
 from scipy.stats.mstats import zscore
 
 
-def dtw(x, y, dist, l=1, warp=1):
+def dtw(x, y, dist, l=1, warp=1, z_normalize=False):
     """
     Computes Dynamic Time Warping (DTW) of two sequences.
 
@@ -14,6 +14,11 @@ def dtw(x, y, dist, l=1, warp=1):
     :param int warp: how many shifts are computed.
     Returns the minimum distance, the cost matrix, the accumulated cost matrix, and the wrap path.
     """
+
+    if z_normalize:
+        x = zscore(x)
+        y = zscore(y)
+
     series_len = len(x)
     distance_cost = np.full((series_len + 1, series_len + 1), np.inf)
     distance_cost[0, 0] = 0
@@ -55,4 +60,5 @@ def _traceback(D):
             i -= 1
             
     distance = D[-1, -1]
+    
     return (np.array(p), np.array(q)), distance / len(p)

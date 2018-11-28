@@ -26,7 +26,7 @@ class DataIterator(StopIteration):
             label = self.pseudo_random_gen.choice(self.labels)
             index = self.obj_indexes[label].pop()
             
-            return self.data.loc[index, "0":].values, label
+            return self.data.loc[index, "0":].values.T, label, index
         except:
             raise StopIteration
 

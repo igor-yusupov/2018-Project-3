@@ -18,8 +18,6 @@ class DtwWrapper:
         str_args = "".join(["{}{}".format(key, dtw_args[key]) for key in dtw_args])
         self.dtw_name = "{0}{1}{2}{3}{4}".format(dtw_function.__name__, distance_function.__name__, str_args, items_hash, ch_num)
         self.series_distance = self.dtw_dist(dtw_function, distance_function, dtw_args)
-        self.shape = items[0].loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.shape
-        self.X_reshaped = np.array([x.loc[:, "ECoG_ch1":"ECoG_ch{0}".format(self.chanel_num)].values.reshape(1, -1)[0] for x in self.items])
         if exists("../data/distances/{0}.csv".format(self.dtw_name)):
             print("Loaded")
             self.distances = np.genfromtxt("../data/distances/{0}.csv".format(self.dtw_name))
@@ -33,14 +31,14 @@ class DtwWrapper:
             return self.distances[x_index, y_index]
 
         self.distances[x_index, y_index] = self.series_distance(
-            self.X_reshaped[x_index],
-            self.X_reshaped[y_index]
+            self.items[x_index],
+            self.items[y_index]
         )
 
         return self.distances[x_index, y_index]
 
     def dtw_dist(self, dtw_function, distance_function, dtw_args):
-        return lambda x, y: (dtw_function(x.reshape(self.shape), y.reshape(self.shape), distance_function, **dtw_args)[0])
+        return lambda x, y: dtw_function(x, y, distance_function, **dtw_args)[0]
 
     def dump(self):
         np.savetxt("../data/distances/{0}.csv".format(self.dtw_name), X=self.distances)
