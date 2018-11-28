@@ -61,7 +61,12 @@ class TestFactory:
 
         return items, np.array(labels), infos
 
-    def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}):
+    def test_dtw(self, dtw_function, distance_function, description=None, sample_size=-1, dump_result=False, dtw_args={}, cluster_dist="complete"):
+        """
+            work with cluster_dist from: complete, average, weighted
+            the best is complete now
+        """
+
         if sample_size < 0:
             sample_size = self.standart_sample_size
 
@@ -77,7 +82,7 @@ class TestFactory:
 
         for i in range(self.repeat_num):
             Z = linkage(
-                np.linspace(0, len(self.X) - 1, len(self.X), dtype=int).reshape(-1, 1), "average", metric=f)
+                np.linspace(0, len(self.X) - 1, len(self.X), dtype=int).reshape(-1, 1), cluster_dist, metric=f)
         end_time = time.time()
         t = "{0:.3f}".format((end_time - start_time) / self.repeat_num)
         print("Elapsed time: {0}".format(t))
@@ -197,18 +202,18 @@ class ClusteredInfo:
         
         t = np.linspace(0, self.element_length - 1, self.element_length, dtype=int)
         for df_id in range(num_series):
-            for ch in range(0, chanels):
+            for ch in range(chanels):
                 x = self.X[idxs[df_id]][:, ch]
                 if z_normalize:
                     x = zscore(x)
                 ax[df_id][ch - 1].plot(t, x)
                 if df_id == 0:
-                    ax[df_id][ch - 1].set_xlabel("ch{}".format(ch), fontsize=14)
+                    ax[df_id][ch].set_xlabel("ch{}".format(ch), fontsize=14)
                 if ch == 1:
-                    ax[df_id][ch - 1].set_ylabel("ts{}".format(df_id + 1),fontsize=14)
-                ax[df_id][ch - 1].xaxis.set_label_position("top")
-                ax[df_id][ch - 1].xaxis.label.set_color("red")
-                ax[df_id][ch - 1].yaxis.label.set_color("red")
+                    ax[df_id][ch].set_ylabel("ts{}".format(df_id + 1),fontsize=14)
+                ax[df_id][ch].xaxis.set_label_position("top")
+                ax[df_id][ch].xaxis.label.set_color("red")
+                ax[df_id][ch].yaxis.label.set_color("red")
         
         plt.tight_layout();
 

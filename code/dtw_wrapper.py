@@ -57,7 +57,7 @@ class DtwWrapper:
                 break
             print("dump")
             self.dump()
-            sleep(10)
+            sleep(20)
 
         for th in ths:
             th.join()
