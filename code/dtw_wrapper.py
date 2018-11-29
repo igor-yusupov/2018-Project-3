@@ -43,7 +43,7 @@ class DtwWrapper:
     def dump(self):
         np.savetxt("../data/distances/{0}.csv".format(self.dtw_name), X=self.distances)
         
-    def fill_distances(self, n_threads=4, print_time=True):
+    def fill_distances(self, n_threads=4, print_time=True, sleep_time=30):
         t = time()
         ths = [Thread(target=self.computer, args=(i, self.dist, n_threads)) for i in range(n_threads)]
         for th in ths:
@@ -55,9 +55,12 @@ class DtwWrapper:
                 alive &= th.is_alive()
             if not alive:
                 break
-            print("dump")
-            self.dump()
-            sleep(20)
+
+            sleep(10)            
+            if i % sleep_time == 0:
+                print("dump")
+                self.dump()
+                print(i)
 
         for th in ths:
             th.join()
