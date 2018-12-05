@@ -5,15 +5,6 @@ from scipy.stats.mstats import zscore
 
 
 def dtw(x, y, dist, l=1, warp=1, z_normalize=False):
-    """
-    Computes Dynamic Time Warping (DTW) of two sequences.
-
-    :param array x: N1*M array
-    :param array y: N2*M array
-    :param func dist: distance used as cost measure
-    :param int warp: how many shifts are computed.
-    Returns the minimum distance, the cost matrix, the accumulated cost matrix, and the wrap path.
-    """
 
     if z_normalize:
         x = zscore(x)
@@ -41,7 +32,8 @@ def dtw(x, y, dist, l=1, warp=1, z_normalize=False):
     
     path, path_cost = _traceback(distance_cost)
             
-    return path_cost, path, distance_cost[1:,1:], pairwise_distances
+    return path_cost, path, distance_cost[1:, 1:], pairwise_distances
+
 
 def _traceback(D):
     i = D.shape[0] - 1

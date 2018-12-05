@@ -33,7 +33,7 @@ class TestFactory:
         self.element_length = params["element_length"]
         self.standart_sample_size = params["sample_size"]
         data = pd.read_csv(params["path"], header=0, nrows=params["nrow"])
-        if it != None:
+        if it is not None:
             self.data_iterator = it
         else:
             self.data_iterator = DataIterator(data, self.element_length, params["shuffle"], random_state=random_state)
@@ -227,7 +227,7 @@ class ClusteredInfo:
             return
 
         fig, axs = plt.subplots(showed_chanels_num, 1, sharex=True, squeeze=False, figsize=(15, 2.5 * showed_chanels_num), constrained_layout=False)
-        fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize = 14)
+        fig.suptitle("Cluster {0}".format(label), y=1.01, fontsize=14)
 
         for i in range(num_series):
             df_id = idxs[i]
