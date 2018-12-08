@@ -1,5 +1,6 @@
 \documentclass[12pt,twoside]{article}
     \usepackage{jmlda}
+    \usepackage{booktabs}
     %\NOREVIEWERNOTES
     \title
         {Динамическое выравнивание многомерных временных рядов}
@@ -191,10 +192,27 @@
         Из них была сгенерирована выборка из 2048 рядов по 50 точек.
         Каждых из рядов принадлежал к одному из шести возможных классов. Данные были равномерно распределены по всем классам.
 
-        Проводилась кластеризация этих данных описаными методами.
+        Проводилась кластеризация этих данных описаными методами. В качестве расстояния между векторами использовались $L_1$  и $L_2$ нормы.
         Так как в процессе получения данных были возможны различные положения телефона в кармане, кластеризация проводилась на 24, 36 и 48 кластеров.
 
-    \paragraph{Название параграфа.}
+        \paragraph{Результаты}
+            \begin{center}
+                \begin{tabular}{ll|rrr|rrr}  
+                    \toprule
+                    & & \multicolumn{3}{c}{имя метрики} & \multicolumn{3}{c}{имя метрики2} \\
+                    \cmidrule(r){3-8}
+                $\rho$    & n clust & \textit{weighted} & \textit{average} & \textit{complete} & \textit{weighted} & \textit{average} & \textit{complete} \\
+                    \midrule
+                $L_1$   & 24    &    &   &   &    &   &   \\
+                        & 36    &    &   &   &    &   &   \\
+                        & 48    &    &   &   &    &   &   \\
+                $L_2$   & 24    &    &   &   &    &   &   \\
+                        & 36    &    &   &   &    &   &   \\
+                        & 48    &    &   &   &    &   &   \\
+                \bottomrule
+                \end{tabular}
+            \end{center}
+
     \section{Заключение}
 
 	\bibliography{literature} 
@@ -204,7 +222,7 @@
     %\ACCEPTNOTE
     %\AMENDNOTE
     %\REJECTNOTE
-    \end{document}
+\end{document}
     
 
     
